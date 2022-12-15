@@ -18,7 +18,7 @@
 
  
  #define N 4000000
- #define RADIUS 5
+ #define RADIUS 50
  #define THREADS_PER_BLOCK 512
  
  __global__
@@ -28,10 +28,27 @@
   /* insert code to calculate global index in the array using block
   and thread built-in variables */
   int gindex = threadIdx.x + blockIdx.x * blockDim.x;
-     
+  
+  __shared__ float shared[THREADS_PER_BLOCK + 2*RADIUS];
+
+
   /* return if my global index is larger than the array size */
   if( gindex < n ){
  
+    shared[threadIdx.x + RADIUS] = in[gindex];
+
+    if (gindex - RADIUS < 0) //Cas particulier pour bord gauche de in
+      shared[threadIdx.x] = 0;
+    else if( threadIdx.x < RADIUS ) //Cas particulier pour bord gauche du block
+      shared[threadIdx.x] = in[gindex - RADIUS];
+    
+    if (gindex > (n - RADIUS)) //Cas particulier pour bord droit de in
+      shared[threadIdx.x + 2*RADIUS] = 0;
+    else if( threadIdx.x >= (THREADS_PER_BLOCK - RADIUS)) //Cas particulier pour bord droit du block
+      shared[threadIdx.x + 2*RADIUS] = in[gindex + RADIUS];
+
+    __syncthreads();
+
    /* code to handle the boundary conditions */
    if( gindex < RADIUS || gindex >= (n - RADIUS) ) 
    {
@@ -40,11 +57,11 @@
    else{ 
      double result = 0.0;
      
-     for( int i = gindex-(RADIUS); i <= gindex+(RADIUS); i++ ) 
+     for( int i = threadIdx.x; i <= threadIdx.x + 2 * RADIUS  ; i++ ) 
      {
        /* add the required elements from the array "in" to the temporary 
        variable "result */
-       result += in[i];
+       result += shared[i];
      } 
      out[gindex] = result;
     }
