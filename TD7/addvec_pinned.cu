@@ -31,11 +31,10 @@ int main()
 	cudaMalloc((void **)&d_b, size);
 	cudaMalloc((void **)&d_c, size);
 
-	/* allocate space for host copies of a, b, c and setup input values */
-
-	a = (int *)malloc(size);
-	b = (int *)malloc(size);
-	c = (int *)malloc(size);
+	/* allocate space for device copies of a, b, c */
+	cudaHostAlloc((void **)&a, size, cudaHostAllocDefault);
+	cudaHostAlloc((void **)&b, size, cudaHostAllocDefault);
+	cudaHostAlloc((void **)&c, size, cudaHostAllocDefault);
 
 	for (int i = 0; i < N; i++)
 	{
@@ -73,9 +72,9 @@ int main()
 
 	/* clean up */
 
-	free(a);
-	free(b);
-	free(c);
+	cudaFreeHost(a);
+	cudaFreeHost(b);
+	cudaFreeHost(c);
 	cudaFree(d_a);
 	cudaFree(d_b);
 	cudaFree(d_c);

@@ -21,9 +21,6 @@ int main()
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 
-	/* record start time */
-	cudaEventRecord(start, 0);
-
 	int *a, *b, *c;
 	// int *a, *b, *c;
 
@@ -46,6 +43,9 @@ int main()
 		// c[i] = 0;
 	}
 
+	/* record start time */
+	cudaEventRecord(start, 0);
+
 	/* copy inputs to device */
 	/* fix the parameters needed to copy data to the device */
 	// cudaMemcpy(a, a, size, cudaMemcpyHostToDevice);
@@ -59,6 +59,11 @@ int main()
 	vector_add<<<nb_blocks, THREADS_PER_BLOCK>>>(a, b, c);
 
 	cudaDeviceSynchronize();
+
+	/* record finish time */
+	cudaEventRecord(stop, 0);
+	/* wait GPU event */
+	cudaEventSynchronize(stop);
 
 	/* copy result back to host */
 	/* fix the parameters needed to copy data back to the host */
@@ -76,11 +81,6 @@ int main()
 	cudaFree(a);
 	cudaFree(b);
 	cudaFree(c);
-
-	/* record finish time */
-	cudaEventRecord(stop, 0);
-	/* wait GPU event */
-	cudaEventSynchronize(stop);
 
 	/* compute and print ellapsed time between start and stop */
 	float elapsedTime;
