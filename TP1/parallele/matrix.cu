@@ -5,6 +5,8 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+const int THREADS_PER_BLOCK = 256;
+
 /**
  * @brief Allouer un espace dans la mémoire pour stocker une matrice
  * de taille rows x columns
@@ -154,6 +156,23 @@ void matrix_minus(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+
+__global__ void computeMatrixMulGPU(double *A, double *B, double *C, int d1, int d2, int d3)
+{
+    int j = threadIdx.x + blockIdx.x * blockDim.x; // Col
+    int i = threadIdx.y + blockIdx.y * blockDim.y; // Row
+    if (i < d1 && j < d3)
+    {
+        double s = 0;
+        for (int k = 0; k < d2; k++)
+        {
+            s += A[i * d2 + k] * B[j + k * d3];
+        }
+        C[i * d3 + j] = s;
+    }
+}
+
+
 /**
  * @brief Produit matriciel
  * 
@@ -167,21 +186,27 @@ void matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res)
            (m1->rows == res->rows) &&
            (m2->columns == res->columns));
 
-    for (int row = 0; row < m1->rows; row++)
-    {
-        for (int col = 0; col < m2->columns; col++)
-        {
-            int idx = col + row * m2->columns;
-            double var = 0.0;
+    int gridSize = ceil((float)res->rows * res->columns / THREADS_PER_BLOCK);
+    dim3 DimGrid(gridSize, gridSize, 1);
+    dim3 DimBlock(THREADS_PER_BLOCK, THREADS_PER_BLOCK, 1);
 
-            for (int ii = 0; ii < m1->columns; ii++)
-            {
-                var += m1->m[ii + row * m1->columns] * m2->m[col + ii * m2->columns];
-            }
+    computeMatrixMulGPU<<<DimGrid, DimBlock>>>(m1->m, m2->m, res->m, m1->rows, m1->columns, m2->columns);
+    cudaDeviceSynchronize();
+    // for (int row = 0; row < m1->rows; row++)
+    // {
+    //     for (int col = 0; col < m2->columns; col++)
+    //     {
+    //         int idx = col + row * m2->columns;
+    //         double var = 0.0;
 
-            res->m[idx] = var;
-        }
-    }
+    //         for (int ii = 0; ii < m1->columns; ii++)
+    //         {
+    //             var += m1->m[ii + row * m1->columns] * m2->m[col + ii * m2->columns];
+    //         }
+
+    //         res->m[idx] = var;
+    //     }
+    // }
 }
 
 /**
