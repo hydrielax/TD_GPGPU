@@ -23,6 +23,30 @@ matrix_t *alloc_matrix(unsigned rows, unsigned columns)
 }
 
 /**
+ * @brief Allouer un espace dans la mémoire pour stocker une matrice
+ * de taille rows x columns
+ * 
+ * @param rows 
+ * @param columns 
+ * @return matrix_t* 
+ */
+matrix_t *cuda_alloc_matrix(unsigned rows, unsigned columns)
+{
+    matrix_t *res;
+    cudaMallocManaged(&res, sizeof(matrix_t));
+    double *m;
+    cudaMallocManaged(&m, columns * rows * sizeof(double));
+    res->m = m;
+    res->columns = columns;
+    res->rows = rows;
+    for (int idx = 0; idx < columns * rows; idx++)
+    {
+        res->m[idx] = 0;
+    }
+    return res;
+}
+
+/**
  * @brief Libérer la mémoire pour la matrice
  * 
  * @param m 

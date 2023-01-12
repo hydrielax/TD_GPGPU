@@ -13,6 +13,7 @@ typedef struct
 } matrix_t;
 
 matrix_t *alloc_matrix(unsigned rows, unsigned columns);
+matrix_t *cuda_alloc_matrix(unsigned rows, unsigned columns);
 
 void destroy_matrix(matrix_t *m);
 

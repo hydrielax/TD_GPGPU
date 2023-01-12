@@ -185,8 +185,6 @@ int main(int argc, char *argv[])
     double *y = (double *)malloc(10 * minibatch_size * sizeof(double));
     matrix_t *out = alloc_matrix(10, minibatch_size);
 
-    CREATE_CUDAEVENT
-
     for (int epoch = 0; epoch < 40; epoch++)
     {
         printf("start learning epoch %d\n", epoch);

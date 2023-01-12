@@ -1,5 +1,6 @@
 #include "ann.h"
 #include "matrix.h"
+#include "timers.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -24,8 +25,8 @@ double normalRand(double mu, double sigma)
 {
     const double epsilon = DBL_MIN;
     const double two_pi = 2.0 * M_PI;
-    bool generate;
-    double z1;
+    static bool generate;
+    static double z1;
 
     generate = !generate;
 
@@ -70,9 +71,10 @@ void init_weight(matrix_t *w, unsigned nneurones_prev)
  */
 ann_t *create_ann(double alpha, unsigned minibatch_size, unsigned number_of_layers, unsigned *nneurons_per_layer)
 {
-    ann_t *nn = (ann_t *)malloc(sizeof(ann_t));
+    ann_t *nn;
+    cudaMallocManaged(&nn, sizeof(ann_t));
 
-    nn->layers = (layer_t **)malloc(number_of_layers * sizeof(layer_t *));
+    cudaMallocManaged(&(nn->layers), number_of_layers * sizeof(layer_t *));
     nn->number_of_layers = number_of_layers;
     nn->alpha = alpha;
     nn->minibatch_size = minibatch_size;
@@ -98,11 +100,12 @@ ann_t *create_ann(double alpha, unsigned minibatch_size, unsigned number_of_laye
  */
 layer_t *create_layer(unsigned layer_number, unsigned number_of_neurons, unsigned nneurons_previous_layer, unsigned minibatch_size)
 {
-    layer_t *layer = (layer_t *)malloc(sizeof(layer_t));
+    layer_t *layer;
+    cudaMallocManaged(&layer, sizeof(layer_t));
 
     layer->number_of_neurons = number_of_neurons;
     layer->minibatch_size = minibatch_size;
-    layer->activations = alloc_matrix(number_of_neurons, minibatch_size);
+    layer->activations = cuda_alloc_matrix(number_of_neurons, minibatch_size);
     layer->z = alloc_matrix(number_of_neurons, minibatch_size);
     layer->delta = alloc_matrix(number_of_neurons, minibatch_size);
     layer->weights = alloc_matrix(number_of_neurons, nneurons_previous_layer);
@@ -195,10 +198,11 @@ void forward(ann_t *nn, double (*activation_function)(double))
 
 /**
  * @brief Calcul de la rétro-propagation : mise à jour des poids et des biais
+ * @todo
  * 
  * @param nn - Réseau des neurones
  * @param y - labels attendus
- * @param derivative_actfunct - fonction dérivée
+ * @param derivative_actfunct - fonction dérivée (dsigmoid) 
  */
 void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
 {
