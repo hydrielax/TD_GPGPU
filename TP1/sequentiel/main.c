@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
     for (int epoch = 0; epoch < 40; epoch++)
     {
         printf("start learning epoch %d\n", epoch);
+        clock_t begin = clock();
 
         shuffle(shuffled_idx, datasize, datasize);
 
@@ -142,7 +143,10 @@ int main(int argc, char *argv[])
             memcpy(out->m, y, 10 * minibatch_size * sizeof(double));
             backward(nn, out, dsigmoid);
         }
+
+        clock_t end = clock();
         printf("epoch %d accuracy %lf\n", epoch, accuracy(test_img, test_label, ntest, minibatch_size, nn));
+        printf("epoch %d time %lf\n", epoch, (double)(end - begin) / CLOCKS_PER_SEC);
     }
 
     free(x);

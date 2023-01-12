@@ -12,6 +12,14 @@ double normalRand(double mu, double sigma);
 void init_weight(matrix_t *w, unsigned nneurones_prev);
 void print_layer(layer_t *layer);
 
+/**
+ * @brief Donne un nombre aléatoire suivant une loi normale
+ * de paramètres mu et sigma.
+ * 
+ * @param mu 
+ * @param sigma 
+ * @return double 
+ */
 double normalRand(double mu, double sigma)
 {
     const double epsilon = DBL_MIN;
@@ -37,6 +45,12 @@ double normalRand(double mu, double sigma)
     return z0 * sigma + mu;
 }
 
+/**
+ * @brief Initialise les poids pour une couche
+ * 
+ * @param w - Les poids d'une couche
+ * @param nneurones_prev 
+ */
 void init_weight(matrix_t *w, unsigned nneurones_prev)
 {
     for (int idx = 0; idx < w->columns * w->rows; idx++)
@@ -45,6 +59,15 @@ void init_weight(matrix_t *w, unsigned nneurones_prev)
     }
 }
 
+/**
+ * @brief Create a ann (Artifial Neural Network) object
+ * 
+ * @param alpha - Le pas du gradient
+ * @param minibatch_size - Taille des minibatch
+ * @param number_of_layers - Nombre de couches
+ * @param nneurons_per_layer - Tableau du nombre de neuronnes par couches
+ * @return ann_t* - L'objet ann créé
+ */
 ann_t *create_ann(double alpha, unsigned minibatch_size, unsigned number_of_layers, unsigned *nneurons_per_layer)
 {
     ann_t *nn = (ann_t *)malloc(sizeof(ann_t));
@@ -63,6 +86,16 @@ ann_t *create_ann(double alpha, unsigned minibatch_size, unsigned number_of_laye
     return nn;
 }
 
+/**
+ * @brief Create a layer object.
+ * Initiliase uniquement pour les couches > 0
+ * 
+ * @param layer_number - Numéro de la couche
+ * @param number_of_neurons - Nombre de neuronnes pour la couche
+ * @param nneurons_previous_layer - Nombre de neuronnes de la couche précédente
+ * @param minibatch_size - taille du minibatch
+ * @return layer_t* 
+ */
 layer_t *create_layer(unsigned layer_number, unsigned number_of_neurons, unsigned nneurons_previous_layer, unsigned minibatch_size)
 {
     layer_t *layer = (layer_t *)malloc(sizeof(layer_t));
@@ -83,11 +116,22 @@ layer_t *create_layer(unsigned layer_number, unsigned number_of_neurons, unsigne
     return layer;
 }
 
+/**
+ * @brief Copie les données d'entrée dans la 1ere couche
+ * 
+ * @param nn 
+ * @param input 
+ */
 void set_input(ann_t *nn, matrix_t *input)
 {
     matrix_memcpy(nn->layers[0]->activations, input);
 }
 
+/**
+ * @brief Afficher les caractéristiques d'une couche
+ * 
+ * @param layer 
+ */
 void print_layer(layer_t *layer)
 {
     printf("-- neurons:%d, minibatch size:%d\n", layer->number_of_neurons, layer->minibatch_size);
@@ -106,6 +150,11 @@ void print_layer(layer_t *layer)
     print_matrix(layer->delta, true);
 }
 
+/**
+ * @brief Afficher toutes les couches d'un nn
+ * 
+ * @param nn 
+ */
 void print_nn(ann_t *nn)
 {
     printf("ANN -- nlayers:%d, alpha:%lf, minibatch size: %d\n", nn->number_of_layers, nn->alpha, nn->minibatch_size);
@@ -116,6 +165,12 @@ void print_nn(ann_t *nn)
     }
 }
 
+/**
+ * @brief Calcul de la propgation (activations)
+ * 
+ * @param nn 
+ * @param activation_function 
+ */
 void forward(ann_t *nn, double (*activation_function)(double))
 {
     for (int l = 1; l < nn->number_of_layers; l++)
@@ -138,6 +193,13 @@ void forward(ann_t *nn, double (*activation_function)(double))
     }
 }
 
+/**
+ * @brief Calcul de la rétro-propagation : mise à jour des poids et des biais
+ * 
+ * @param nn - Réseau des neurones
+ * @param y - labels attendus
+ * @param derivative_actfunct - fonction dérivée
+ */
 void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
 {
     unsigned L = nn->number_of_layers - 1;
