@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
     printf("Name: %s\n", deviceProp.name);
     printf("Multiprocessor Count: %d\n", deviceProp.multiProcessorCount);
     printf("Clock Rate (kHz): %d\n", deviceProp.clockRate);
+    printf("Overlap: %d\n", deviceProp.deviceOverlap);
   }
 
   return 0;
