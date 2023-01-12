@@ -1,4 +1,4 @@
-// Compile gcc -o ./ann main.c matrix.c ann.c mnist.c -lm
+// Compile nvcc -o ./ann main.cu matrix.cu ann.cu mnist.cu -lm
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -7,27 +7,20 @@
 #include "mnist.h"
 #include "matrix.h"
 #include "ann.h"
+#include "timers.h"
 #include <math.h>
 #include <string.h>
 #include <time.h>
 
-#define CREATE_CUDAEVENT     \
-	cudaEvent_t start, stop; \
-	cudaEventCreate(&start); \
-	cudaEventCreate(&stop);
-
-#define START_CUDAEVENT cudaEventRecord(start, 0);
-#define STOP_AND_PRINT_CUDAEVENT(txt)                       \
-	cudaEventRecord(stop, 0);                               \
-	cudaEventSynchronize(stop);                             \
-	{                                                       \
-		float elapsedTime;                                  \
-		cudaEventElapsedTime(&elapsedTime, start, stop);    \
-		printf("Time to %s %3.1f ms\n", #txt, elapsedTime); \
-	}
 
 void populate_minibatch(double *x, double *y, unsigned *minibatch_idx, unsigned minibatch_size, image *img, unsigned img_size, byte *label, unsigned label_size);
 
+/**
+ * @brief Créer le tableau [0:n]
+ * 
+ * @param n - valeur max
+ * @param t - adresse du tableau
+ */
 void zero_to_n(unsigned n, unsigned *t)
 {
     for (unsigned i = 0; i < n; i++)
@@ -36,6 +29,13 @@ void zero_to_n(unsigned n, unsigned *t)
     }
 }
 
+/**
+ * @brief Effectue number_of_switch permutations sur un tableau
+ * 
+ * @param t - le tableau
+ * @param size 
+ * @param number_of_switch - nombre de permutations
+ */
 void shuffle(unsigned *t, const unsigned size, const unsigned number_of_switch)
 {
     zero_to_n(size, t);
@@ -49,16 +49,38 @@ void shuffle(unsigned *t, const unsigned size, const unsigned number_of_switch)
     }
 }
 
+/**
+ * @brief Fonction sigmoïde
+ * 
+ * @param x 
+ * @return double 
+ */
 double sigmoid(double x)
 {
     return 1 / (1 + exp(-x));
 }
 
+/**
+ * @brief Dérivée de la fonction d'activation sigmoïde
+ * 
+ * @param x 
+ * @return double 
+ */
 double dsigmoid(double x)
 {
     return sigmoid(x) * (1 - sigmoid(x));
 }
 
+/**
+ * @brief Calcule l'accuracy du réseau de neurones sur le jeu de test
+ * 
+ * @param test_img 
+ * @param test_label 
+ * @param datasize 
+ * @param minibatch_size 
+ * @param nn 
+ * @return double - pourcentage de réussites
+ */
 double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned minibatch_size, ann_t *nn)
 {
     unsigned good = 0;
@@ -101,6 +123,19 @@ double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned m
     return (100.0 * (double)(good) / ntests);
 }
 
+/**
+ * @brief Crée un minibatch (X, Y)
+ * @todo
+ * 
+ * @param x 
+ * @param y 
+ * @param minibatch_idx - liste des id des images pour ce minibatch
+ * @param minibatch_size - taille du minibatch (nombre d'images)
+ * @param img - liste de toutes les images
+ * @param img_size - taille d'une image
+ * @param label - liste de tous les labels
+ * @param label_size - nombre de labels (classes) possibles
+ */
 void populate_minibatch(double *x, double *y, unsigned *minibatch_idx, unsigned minibatch_size, image *img, unsigned img_size, byte *label, unsigned label_size)
 {
     for (int col = 0; col < minibatch_size; col++)
@@ -110,7 +145,7 @@ void populate_minibatch(double *x, double *y, unsigned *minibatch_idx, unsigned 
             x[row * minibatch_size + col] = (double)img[minibatch_idx[col]][row] / 255.;
         }
 
-        for (int row = 0; row < 10; row++)
+        for (int row = 0; row < label_size; row++)
         {
             y[row * minibatch_size + col] = 0.0;
         }
@@ -119,6 +154,13 @@ void populate_minibatch(double *x, double *y, unsigned *minibatch_idx, unsigned 
     }
 }
 
+/**
+ * @brief Fonction qui fait tout
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char *argv[])
 {
     srand(time(0));
@@ -159,7 +201,9 @@ int main(int argc, char *argv[])
             memcpy(out->m, y, 10 * minibatch_size * sizeof(double));
             backward(nn, out, dsigmoid);
         }
-        printf("epoch %d accuracy %lf\n", epoch, accuracy(test_img, test_label, ntest, minibatch_size, nn));
+
+        double acc = accuracy(test_img, test_label, ntest, minibatch_size, nn);
+        printf("\tepoch %d accuracy %lf\n", epoch, acc);
     }
 
     free(x);

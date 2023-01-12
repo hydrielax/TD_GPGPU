@@ -5,6 +5,14 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+/**
+ * @brief Allouer un espace dans la mémoire pour stocker une matrice
+ * de taille rows x columns
+ * 
+ * @param rows 
+ * @param columns 
+ * @return matrix_t* 
+ */
 matrix_t *alloc_matrix(unsigned rows, unsigned columns)
 {
     matrix_t *res = (matrix_t *)malloc(sizeof(matrix_t));
@@ -14,6 +22,11 @@ matrix_t *alloc_matrix(unsigned rows, unsigned columns)
     return res;
 }
 
+/**
+ * @brief Libérer la mémoire pour la matrice
+ * 
+ * @param m 
+ */
 void destroy_matrix(matrix_t *m)
 {
     // printf("free %p %p\n", m, m->m);
@@ -21,6 +34,12 @@ void destroy_matrix(matrix_t *m)
     free(m);
 }
 
+/**
+ * @brief Afficher la matrice
+ * 
+ * @param m 
+ * @param is_short 
+ */
 void print_matrix(matrix_t *m, bool is_short)
 {
     unsigned lim_rows = 0;
@@ -51,6 +70,13 @@ void print_matrix(matrix_t *m, bool is_short)
         printf("...\n");
 }
 
+/**
+ * @brief Calculer le produit de Hadamard (produit terme à terme)
+ * 
+ * @param m1 
+ * @param m2 
+ * @param res 
+ */
 void hadamard_product(matrix_t *m1, matrix_t *m2, matrix_t *res)
 {
     assert((m1->columns == m2->columns) &&
@@ -64,6 +90,13 @@ void hadamard_product(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+/**
+ * @brief Somme de matrice (terme à terme)
+ * 
+ * @param m1 
+ * @param m2 
+ * @param res 
+ */
 void matrix_sum(matrix_t *m1, matrix_t *m2, matrix_t *res)
 {
     assert((m1->columns == m2->columns) &&
@@ -77,6 +110,13 @@ void matrix_sum(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+/**
+ * @brief Différence de matrices: m1 - m2
+ * 
+ * @param m1 
+ * @param m2 
+ * @param res 
+ */
 void matrix_minus(matrix_t *m1, matrix_t *m2, matrix_t *res)
 {
     assert((m1->columns == m2->columns) &&
@@ -90,6 +130,13 @@ void matrix_minus(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+/**
+ * @brief Produit matriciel
+ * 
+ * @param m1 
+ * @param m2 
+ * @param res 
+ */
 void matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res)
 {
     assert((m1->columns == m2->rows) &&
@@ -113,6 +160,13 @@ void matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+/**
+ * @brief Appliquer une fonction à tous les éléments d'une matrice.
+ * 
+ * @param m1 
+ * @param f 
+ * @param res 
+ */
 void matrix_function(matrix_t *m1, double (*f)(double), matrix_t *res)
 {
     assert((m1->columns == res->columns) &&
@@ -124,6 +178,13 @@ void matrix_function(matrix_t *m1, double (*f)(double), matrix_t *res)
     }
 }
 
+
+/**
+ * @brief Transposer une matrice
+ * 
+ * @param m1 
+ * @param res 
+ */
 void matrix_transpose(matrix_t *m1, matrix_t *res)
 {
     assert((m1->columns == res->rows) &&
@@ -138,6 +199,13 @@ void matrix_transpose(matrix_t *m1, matrix_t *res)
     }
 }
 
+/**
+ * @brief Produit externe par un scalaire
+ * 
+ * @param m1 
+ * @param s 
+ * @param res 
+ */
 void matrix_scalar(matrix_t *m1, double s, matrix_t *res)
 {
     assert((m1->rows == res->rows) &&
@@ -149,6 +217,12 @@ void matrix_scalar(matrix_t *m1, double s, matrix_t *res)
     }
 }
 
+/**
+ * @brief Copie les valaurs d'une matrice dans une autre.
+ * 
+ * @param dest 
+ * @param src 
+ */
 void matrix_memcpy(matrix_t *dest, const matrix_t *src)
 {
     assert((dest->rows == src->rows) &&
