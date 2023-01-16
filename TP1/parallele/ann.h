@@ -10,13 +10,13 @@ typedef struct
     unsigned minibatch_size;
     unsigned number_of_neurons;
 
-    matrix_t *weights;
-    matrix_t *biases;
+    matrix_t *g_weights;
+    matrix_t *g_biases;
 
-    matrix_t *z;
-    matrix_t *activations;
+    matrix_t *g_z;
+    matrix_t *g_activations;
 
-    matrix_t *delta;
+    matrix_t *g_delta;
 } layer_t;
 
 typedef struct
@@ -34,12 +34,12 @@ ann_t *create_ann(double alpha, unsigned minibatch_size, unsigned number_of_laye
 
 layer_t *create_layer(unsigned l, unsigned number_of_neurons, unsigned nneurons_previous_layer, unsigned minibatch_size);
 
-void set_input(ann_t *nn, matrix_t *input);
+// void set_input(ann_t *nn, matrix_t *input);
 
 void print_nn(ann_t *nn);
 
-void forward(ann_t *nn, double (*activation_function)(double));
+void forward(ann_t *nn, double (*activation_function)(double), matrix_t *g_one);
 
-void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double));
+void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double), matrix_t *g_one);
 
 #endif

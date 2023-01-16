@@ -1,3 +1,5 @@
+// Compile nvcc -o ./test test.cu matrix.cu ann.cu mnist.cu -lm
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,28 +12,37 @@
 #include <string.h>
 #include <time.h>
 
-void test_cuda_alloc_matrix() {
-    matrix_t *res = cuda_alloc_matrix(5, 3);
+void test_alloc_matrix() {
+    matrix_t *res = alloc_matrix(5, 3);
     print_matrix(res, false);
 }
 
 void test_matrix_dot() {
-    matrix_t *A = cuda_alloc_matrix(2, 2);
+    // matrice A
+    matrix_t *A = alloc_matrix(2, 2);
+    matrix_t *g_A = g_alloc_matrix(2, 2);
     A->m[0] = 1; A->m[1] = 2; A->m[2] = 3; A->m[3] = 4;
+    matrix_cudaMemcpy(g_A, A, cudaMemcpyHostToDevice);
     print_matrix(A, false);
     printf("-----------------\n");
-    matrix_t *B = cuda_alloc_matrix(2, 2);
+    // matrice B
+    matrix_t *B = alloc_matrix(2, 2);
+    matrix_t *g_B = g_alloc_matrix(2, 2);
     B->m[0] = 3; B->m[1] = 6; B->m[2] = 8; B->m[3] = 0;
+    matrix_cudaMemcpy(g_B, B, cudaMemcpyHostToDevice);
     print_matrix(B, false);
     printf("-----------------\n");
-    matrix_t *C = cuda_alloc_matrix(2, 2);
-    matrix_dot(A, B, C);
+    // matrice C
+    matrix_t *C = alloc_matrix(2, 2);
+    matrix_t *g_C = g_alloc_matrix(2, 2);
+    matrix_dot(g_A, g_B, g_C);
+    matrix_cudaMemcpy(C, g_C, cudaMemcpyDeviceToHost);
     print_matrix(C, false);
 }
 
 int main(int argc, char *argv[])
 {
-    // test_cuda_alloc_matrix();
+    // test_alloc_matrix();
     test_matrix_dot();
     return 0;
 }

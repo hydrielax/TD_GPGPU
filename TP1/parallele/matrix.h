@@ -13,9 +13,10 @@ typedef struct
 } matrix_t;
 
 matrix_t *alloc_matrix(unsigned rows, unsigned columns);
-matrix_t *cuda_alloc_matrix(unsigned rows, unsigned columns);
+matrix_t *g_alloc_matrix(unsigned rows, unsigned columns);
 
 void destroy_matrix(matrix_t *m);
+void g_destroy_matrix(matrix_t *m);
 
 void print_matrix(matrix_t *m, bool is_short);
 
@@ -33,6 +34,6 @@ void matrix_transpose(matrix_t *m1, matrix_t *res);
 
 void matrix_scalar(matrix_t *m1, double s, matrix_t *res);
 
-void matrix_memcpy(matrix_t *dest, const matrix_t *src);
+void matrix_cudaMemcpy(matrix_t *dest, const matrix_t *src, cudaMemcpyKind kind);
 
 #endif

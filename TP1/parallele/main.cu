@@ -55,7 +55,7 @@ void shuffle(unsigned *t, const unsigned size, const unsigned number_of_switch)
  * @param x 
  * @return double 
  */
-double sigmoid(double x)
+__device__ double sigmoid(double x)
 {
     return 1 / (1 + exp(-x));
 }
@@ -66,7 +66,7 @@ double sigmoid(double x)
  * @param x 
  * @return double 
  */
-double dsigmoid(double x)
+__device__ double dsigmoid(double x)
 {
     return sigmoid(x) * (1 - sigmoid(x));
 }
@@ -81,21 +81,24 @@ double dsigmoid(double x)
  * @param nn 
  * @return double - pourcentage de réussites
  */
-double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned minibatch_size, ann_t *nn)
+double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned minibatch_size, ann_t *nn, matrix_t *d_one)
 {
     unsigned good = 0;
     unsigned idx[datasize];
     double *x = (double *)malloc(28 * 28 * minibatch_size * sizeof(double));
     double *y = (double *)malloc(10 * minibatch_size * sizeof(double));
+    double *pred = (double *)malloc(10 * minibatch_size * sizeof(double));
 
     zero_to_n(datasize, idx);
 
     for (int i = 0; i < datasize - minibatch_size; i += minibatch_size)
     {
         populate_minibatch(x, y, &idx[i], minibatch_size, test_img, 28 * 28, test_label, 10);
-        memcpy(nn->layers[0]->activations->m, x, 28 * 28 * minibatch_size * sizeof(double));
+        cudaMemcpy(nn->layers[0]->g_activations->m, x, 28 * 28 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
 
-        forward(nn, sigmoid);
+        forward(nn, sigmoid, d_one);
+
+        cudaMemcpy(pred, nn->layers[nn->number_of_layers - 1]->g_activations->m, 10 * minibatch_size * sizeof(double), cudaMemcpyDeviceToHost);
         for (int col = 0; col < minibatch_size; col++)
         {
             int idxTrainingData = col + i;
@@ -104,9 +107,9 @@ double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned m
             for (int row = 0; row < 10; row++)
             {
                 int idx = col + row * minibatch_size;
-                if (nn->layers[nn->number_of_layers - 1]->activations->m[idx] > max)
+                if (pred[idx] > max)
                 {
-                    max = nn->layers[nn->number_of_layers - 1]->activations->m[idx];
+                    max = pred[idx];
                     idx_max = row;
                 }
             }
@@ -118,6 +121,7 @@ double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned m
     }
     free(x);
     free(y);
+    free(pred);
 
     unsigned ntests = (datasize / minibatch_size) * minibatch_size;
     return (100.0 * (double)(good) / ntests);
@@ -178,12 +182,19 @@ int main(int argc, char *argv[])
     nn = create_ann(alpha, minibatch_size, number_of_layers, nneurons_per_layer);
     // print_nn(nn);
 
-    printf("starting accuracy %lf\n", accuracy(test_img, test_label, ntest, minibatch_size, nn));
+    // matrix one
+    matrix_t *one = alloc_matrix(1, nn->minibatch_size);
+    for (int idx = 0; idx < one->columns * one->rows; idx++)
+        one->m[idx] = 1.0;
+    matrix_t *g_one = g_alloc_matrix(1, nn->minibatch_size);
+    cudaMemcpy(g_one->m, one->m, 1 * nn->minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
+
+    printf("starting accuracy %lf\n", accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one));
 
     unsigned *shuffled_idx = (unsigned *)malloc(datasize * sizeof(unsigned));
     double *x = (double *)malloc(28 * 28 * minibatch_size * sizeof(double));
     double *y = (double *)malloc(10 * minibatch_size * sizeof(double));
-    matrix_t *out = alloc_matrix(10, minibatch_size);
+    matrix_t *g_out = g_alloc_matrix(10, minibatch_size);
 
     for (int epoch = 0; epoch < 40; epoch++)
     {
@@ -194,20 +205,22 @@ int main(int argc, char *argv[])
         for (int i = 0; i < datasize - minibatch_size; i += minibatch_size)
         {
             populate_minibatch(x, y, shuffled_idx + i, minibatch_size, train_img, 28 * 28, train_label, 10);
-            memcpy(nn->layers[0]->activations->m, x, 28 * 28 * minibatch_size * sizeof(double));
-            forward(nn, sigmoid);
-            memcpy(out->m, y, 10 * minibatch_size * sizeof(double));
-            backward(nn, out, dsigmoid);
+            cudaMemcpy(nn->layers[0]->g_activations->m, x, 28 * 28 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
+            forward(nn, sigmoid, g_one);
+            cudaMemcpy(g_out->m, y, 10 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
+            backward(nn, g_out, dsigmoid, g_one);
         }
 
-        double acc = accuracy(test_img, test_label, ntest, minibatch_size, nn);
+        double acc = accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one);
         printf("\tepoch %d accuracy %lf\n", epoch, acc);
     }
 
     free(x);
     free(y);
     free(shuffled_idx);
-    destroy_matrix(out);
+    destroy_matrix(one);
+    g_destroy_matrix(g_one);
+    g_destroy_matrix(g_out);
 
     return 0;
 }
