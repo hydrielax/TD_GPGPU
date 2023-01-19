@@ -19,6 +19,7 @@ void destroy_matrix(matrix_t *m);
 void g_destroy_matrix(matrix_t *m);
 
 void print_matrix(matrix_t *m, bool is_short);
+void print_g_matrix(matrix_t *g_m, bool is_short);
 
 void hadamard_product(matrix_t *m1, matrix_t *m2, matrix_t *res);
 
@@ -28,7 +29,7 @@ void matrix_minus(matrix_t *m1, matrix_t *m2, matrix_t *res);
 
 void matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res);
 
-void matrix_function(matrix_t *m1, double (*f)(double), matrix_t *res);
+void matrix_function(matrix_t *m1, bool derivee, matrix_t *res);
 
 void matrix_transpose(matrix_t *m1, matrix_t *res);
 

@@ -54,12 +54,12 @@ double normalRand(double mu, double sigma)
  */
 void init_weight(matrix_t *g_w, unsigned nneurones_prev)
 {
-    matrix_t *w = alloc_matrix(g_w->columns, g_w->rows);
+    matrix_t *w = alloc_matrix(g_w->rows, g_w->columns);
     for (int idx = 0; idx < w->columns * w->rows; idx++)
     {
         w->m[idx] = normalRand(0, 1 / sqrt(nneurones_prev));
     }
-    cudaMemcpy(g_w->m, w->m, w->columns * w->rows * sizeof(double), cudaMemcpyHostToDevice);
+    matrix_cudaMemcpy(g_w, w, cudaMemcpyHostToDevice);
 }
 
 /**
@@ -140,17 +140,17 @@ void print_layer(layer_t *layer)
     printf("-- neurons:%d, minibatch size:%d\n", layer->number_of_neurons, layer->minibatch_size);
 
     printf(">> Weighted inputs --\n");
-    print_matrix(layer->g_z, true);
+    print_g_matrix(layer->g_z, true);
     printf(">> Activations --\n");
-    print_matrix(layer->g_activations, true);
+    print_g_matrix(layer->g_activations, true);
 
     printf(">> Weights --\n");
-    print_matrix(layer->g_weights, true);
+    print_g_matrix(layer->g_weights, true);
     printf(">> Biases --\n");
-    print_matrix(layer->g_biases, true);
+    print_g_matrix(layer->g_biases, true);
 
     printf(">> Delta --\n");
-    print_matrix(layer->g_delta, true);
+    print_g_matrix(layer->g_delta, true);
 }
 
 /**
@@ -174,7 +174,7 @@ void print_nn(ann_t *nn)
  * @param nn 
  * @param activation_function 
  */
-void forward(ann_t *nn, double (*activation_function)(double), matrix_t *g_one)
+void forward(ann_t *nn, matrix_t *g_one)
 {
     
     for (int l = 1; l < nn->number_of_layers; l++)
@@ -193,7 +193,7 @@ void forward(ann_t *nn, double (*activation_function)(double), matrix_t *g_one)
         matrix_sum(g_z1, g_z2, nn->layers[l]->g_z);                                   // z^l <- z1 + z2 <=> z^l <- w^l x a^(l-1) + b^l x 1
         // STOP_AND_PRINT_CUDAEVENT(sum)
         // START_CUDAEVENT
-        matrix_function(nn->layers[l]->g_z, activation_function, nn->layers[l]->g_activations); // a^l = f(z^l)
+        matrix_function(nn->layers[l]->g_z, false, nn->layers[l]->g_activations); // a^l = f(z^l)
         // STOP_AND_PRINT_CUDAEVENT(function)
         // START_CUDAEVENT
         g_destroy_matrix(g_z1);
@@ -210,14 +210,14 @@ void forward(ann_t *nn, double (*activation_function)(double), matrix_t *g_one)
  * @param y - labels attendus
  * @param derivative_actfunct - fonction dérivée (dsigmoid) 
  */
-void backward(ann_t *nn, matrix_t *g_y, double (*derivative_actfunct)(double), matrix_t *g_one)
+void backward(ann_t *nn, matrix_t *g_y, matrix_t *g_one)
 {
     unsigned L = nn->number_of_layers - 1;
 
     matrix_t *g_dfzL = g_alloc_matrix(nn->layers[L]->number_of_neurons, nn->minibatch_size);
 
     matrix_minus(nn->layers[L]->g_activations, g_y, nn->layers[L]->g_delta);  // delta^(L) = (a^L - y)
-    matrix_function(nn->layers[L]->g_z, derivative_actfunct, g_dfzL);         // f'(z^(L))
+    matrix_function(nn->layers[L]->g_z, true, g_dfzL);         // f'(z^(L))
     hadamard_product(nn->layers[L]->g_delta, g_dfzL, nn->layers[L]->g_delta); // delta^(L) = (a^L - y) o f'(z^(L))
 
     g_destroy_matrix(g_dfzL);
@@ -231,7 +231,7 @@ void backward(ann_t *nn, matrix_t *g_y, double (*derivative_actfunct)(double), m
 
         matrix_transpose(nn->layers[l]->g_weights, g_tw);                    // (w^l)T
         matrix_dot(g_tw, nn->layers[l]->g_delta, g_delta_tmp);               // (w^l)T x delta^l
-        matrix_function(nn->layers[l - 1]->g_z, derivative_actfunct, g_dfz); // f'(z^(l-1))
+        matrix_function(nn->layers[l - 1]->g_z, true, g_dfz); // f'(z^(l-1))
         hadamard_product(g_delta_tmp, g_dfz, nn->layers[l - 1]->g_delta);    // delta^(l-1) = (w^l)T x delta^l o f'(z^(l-1))
 
         g_destroy_matrix(g_tw);
@@ -260,6 +260,6 @@ void backward(ann_t *nn, matrix_t *g_y, double (*derivative_actfunct)(double), m
         matrix_scalar(g_b1, nn->alpha / nn->minibatch_size, g_b1);            // b1 <- alpha / m . delta^l x 1^T
         matrix_minus(nn->layers[l]->g_biases, g_b1, nn->layers[l]->g_biases); // b^l = b^l - alpha / m . delta^l x 1^T
 
-        destroy_matrix(g_b1);
+        g_destroy_matrix(g_b1);
     }
 }

@@ -237,12 +237,17 @@ void matrix_dot(matrix_t *g_m1, matrix_t *g_m2, matrix_t *g_res)
  * @param numRows 
  * @param numColumns
  */
-__global__ void matrix_function_kernel(double *A, double *B, double (*f)(double), int numRows, int numColumns) {
+__global__ void matrix_function_kernel(double *A, double *B, bool derivee, int numRows, int numColumns) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x; 
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row < numRows && col < numColumns) {
-        B[row * numColumns + col] = f(A[row * numColumns + col]);
+        double x = A[row * numColumns + col];
+        double sig = 1 / (1 + exp(-x));
+        if (derivee) {
+            sig = sig * (1 - sig);
+        }
+        B[row * numColumns + col] = sig;
     }
 }
 
@@ -253,7 +258,7 @@ __global__ void matrix_function_kernel(double *A, double *B, double (*f)(double)
  * @param f 
  * @param res 
  */
-void matrix_function(matrix_t *g_m1, double (*f)(double), matrix_t *g_res)
+void matrix_function(matrix_t *g_m1, bool derivee, matrix_t *g_res)
 {
     assert((g_m1->columns == g_res->columns) &&
            (g_m1->rows == g_res->rows));
@@ -262,7 +267,7 @@ void matrix_function(matrix_t *g_m1, double (*f)(double), matrix_t *g_res)
     dim3 gridDim(ceil((float)g_res->columns / blockDim.x), 
                  ceil((float)g_res->rows / blockDim.y),
                  1);
-    matrix_function_kernel<<<gridDim, blockDim>>>(g_m1->m, g_res->m, f, g_res->rows, g_res->columns);
+    matrix_function_kernel<<<gridDim, blockDim>>>(g_m1->m, g_res->m, derivee, g_res->rows, g_res->columns);
 }
 
 /**
@@ -277,7 +282,7 @@ __global__ void matrix_transpose_kernel(double *A, double *B, int numRows, int n
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x; 
     if (row < numRows && col < numColumns) {
-        B[row * numColumns + col] = A[col * numColumns + row];
+        B[row * numColumns + col] = A[col * numRows + row];
     }
 }
 
@@ -373,7 +378,6 @@ void print_matrix(matrix_t *m, bool is_short)
         lim_rows = m->rows;
         lim_col = m->columns;
     }
-
     for (int row = 0; row < lim_rows; row++)
     {
         for (int col = 0; col < lim_col; col++)
@@ -386,4 +390,18 @@ void print_matrix(matrix_t *m, bool is_short)
     }
     if (is_short && lim_rows != m->rows)
         printf("...\n");
+}
+
+/**
+ * @brief Print a matrix on the GPU memory
+ * 
+ * @param g_m 
+ * @param is_short 
+ */
+void print_g_matrix(matrix_t *g_m, bool is_short)
+{
+
+    matrix_t *m = alloc_matrix(g_m->rows, g_m->columns);
+    matrix_cudaMemcpy(m, g_m, cudaMemcpyDeviceToHost);
+    print_matrix(m, is_short);
 }

@@ -38,8 +38,8 @@ layer_t *create_layer(unsigned l, unsigned number_of_neurons, unsigned nneurons_
 
 void print_nn(ann_t *nn);
 
-void forward(ann_t *nn, double (*activation_function)(double), matrix_t *g_one);
+void forward(ann_t *nn, matrix_t *g_one);
 
-void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double), matrix_t *g_one);
+void backward(ann_t *nn, matrix_t *y, matrix_t *g_one);
 
 #endif

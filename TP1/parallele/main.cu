@@ -50,28 +50,6 @@ void shuffle(unsigned *t, const unsigned size, const unsigned number_of_switch)
 }
 
 /**
- * @brief Fonction sigmoïde
- * 
- * @param x 
- * @return double 
- */
-__device__ double sigmoid(double x)
-{
-    return 1 / (1 + exp(-x));
-}
-
-/**
- * @brief Dérivée de la fonction d'activation sigmoïde
- * 
- * @param x 
- * @return double 
- */
-__device__ double dsigmoid(double x)
-{
-    return sigmoid(x) * (1 - sigmoid(x));
-}
-
-/**
  * @brief Calcule l'accuracy du réseau de neurones sur le jeu de test
  * 
  * @param test_img 
@@ -81,7 +59,7 @@ __device__ double dsigmoid(double x)
  * @param nn 
  * @return double - pourcentage de réussites
  */
-double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned minibatch_size, ann_t *nn, matrix_t *d_one)
+double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned minibatch_size, ann_t *nn, matrix_t *g_one_t)
 {
     unsigned good = 0;
     unsigned idx[datasize];
@@ -96,7 +74,7 @@ double accuracy(image *test_img, byte *test_label, unsigned datasize, unsigned m
         populate_minibatch(x, y, &idx[i], minibatch_size, test_img, 28 * 28, test_label, 10);
         cudaMemcpy(nn->layers[0]->g_activations->m, x, 28 * 28 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
 
-        forward(nn, sigmoid, d_one);
+        forward(nn, g_one_t);
 
         cudaMemcpy(pred, nn->layers[nn->number_of_layers - 1]->g_activations->m, 10 * minibatch_size * sizeof(double), cudaMemcpyDeviceToHost);
         for (int col = 0; col < minibatch_size; col++)
@@ -180,25 +158,28 @@ int main(int argc, char *argv[])
     unsigned number_of_layers = 3;
     unsigned nneurons_per_layer[3] = {28 * 28, 30, 10};
     nn = create_ann(alpha, minibatch_size, number_of_layers, nneurons_per_layer);
-    // print_nn(nn);
 
     // matrix one
-    matrix_t *one = alloc_matrix(1, nn->minibatch_size);
+    matrix_t *one = alloc_matrix(nn->minibatch_size, 1);
     for (int idx = 0; idx < one->columns * one->rows; idx++)
         one->m[idx] = 1.0;
-    matrix_t *g_one = g_alloc_matrix(1, nn->minibatch_size);
+    matrix_t *g_one = g_alloc_matrix(nn->minibatch_size, 1);
     cudaMemcpy(g_one->m, one->m, 1 * nn->minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
+    matrix_t *g_one_t = g_alloc_matrix(1, nn->minibatch_size);
+    matrix_transpose(g_one, g_one_t);
 
-    printf("starting accuracy %lf\n", accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one));
+    printf("starting accuracy %lf\n", accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one_t));
 
     unsigned *shuffled_idx = (unsigned *)malloc(datasize * sizeof(unsigned));
     double *x = (double *)malloc(28 * 28 * minibatch_size * sizeof(double));
     double *y = (double *)malloc(10 * minibatch_size * sizeof(double));
     matrix_t *g_out = g_alloc_matrix(10, minibatch_size);
+    CREATE_CUDAEVENT
 
     for (int epoch = 0; epoch < 40; epoch++)
     {
         printf("start learning epoch %d\n", epoch);
+        START_CUDAEVENT
 
         shuffle(shuffled_idx, datasize, datasize);
 
@@ -206,12 +187,13 @@ int main(int argc, char *argv[])
         {
             populate_minibatch(x, y, shuffled_idx + i, minibatch_size, train_img, 28 * 28, train_label, 10);
             cudaMemcpy(nn->layers[0]->g_activations->m, x, 28 * 28 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
-            forward(nn, sigmoid, g_one);
+            forward(nn, g_one_t);
             cudaMemcpy(g_out->m, y, 10 * minibatch_size * sizeof(double), cudaMemcpyHostToDevice);
-            backward(nn, g_out, dsigmoid, g_one);
+            backward(nn, g_out, g_one);
         }
 
-        double acc = accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one);
+        double acc = accuracy(test_img, test_label, ntest, minibatch_size, nn, g_one_t);
+        STOP_AND_PRINT_CUDAEVENT(epoch)
         printf("\tepoch %d accuracy %lf\n", epoch, acc);
     }
 
@@ -220,6 +202,7 @@ int main(int argc, char *argv[])
     free(shuffled_idx);
     destroy_matrix(one);
     g_destroy_matrix(g_one);
+    g_destroy_matrix(g_one_t);
     g_destroy_matrix(g_out);
 
     return 0;

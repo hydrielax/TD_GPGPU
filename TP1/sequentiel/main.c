@@ -145,8 +145,8 @@ int main(int argc, char *argv[])
         }
 
         clock_t end = clock();
-        printf("epoch %d accuracy %lf\n", epoch, accuracy(test_img, test_label, ntest, minibatch_size, nn));
-        printf("epoch %d time %lf\n", epoch, (double)(end - begin) / CLOCKS_PER_SEC);
+        printf("\tepoch %d accuracy %lf\n", epoch, accuracy(test_img, test_label, ntest, minibatch_size, nn));
+        printf("\tepoch %d time %lf\n", epoch, (double)(end - begin) / CLOCKS_PER_SEC);
     }
 
     free(x);
